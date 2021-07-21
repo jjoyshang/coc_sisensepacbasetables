@@ -1,0 +1,66 @@
+WITH thrutalk_1 AS (
+  SELECT DISTINCT
+    coc_call_results.date_called::Date AS date
+    , 'Phone' AS contact_type
+    , coc_call_results.id AS contact_id
+    , coc_call_results.voter_id
+    , NULL AS sender_phone
+    , CASE WHEN result = 'Talked to Correct Person' THEN 1 ELSE NULL END AS conversation_flag
+  FROM tmc_thrutalk.coc_call_results
+  WHERE coc_call_results.service_account = 'coc_new_york_voters'
+    AND coc_call_results.date_called BETWEEN '2021-05-01' AND '2021-06-30'
+  
+)
+
+
+, thrutalk_2 AS (
+  SELECT DISTINCT
+    coc_callers.date::Date AS date
+    ,'Phone' AS contact_type
+    , NULL AS contact_id
+    , NULL AS voter_id
+    , coc_callers.phone AS sender_phone
+    , NULL AS conversation_flag
+  FROM tmc_thrutalk.coc_callers
+  WHERE coc_callers.service_account = 'coc_new_york_voters'
+    AND coc_callers.date BETWEEN '2021-05-01' AND '2021-06-30'
+ )
+
+, thrutext_base AS (
+  SELECT 
+    coc_messages.ttimestamp::Date AS date
+    , 'Text' AS contact_type
+    , coc_messages.conversation_id AS contact_id
+    , thrutext_messages_append.van_id AS voter_id
+    , coc_messages.sender_phone
+    , CASE WHEN coc_messages.message_direction = 'incoming' THEN 1 ELSE NULL END AS conversation_flag
+    , ROW_NUMBER () OVER (PARTITION BY coc_messages.conversation_id ORDER BY conversation_flag DESC NULLS LAST) AS dupes_ranked
+    -- ^ Field needed to dedup message id and get one record per conversation id
+  FROM tmc_thrutext.coc_messages
+  LEFT JOIN coc_reporting.thrutext_messages_append
+    ON thrutext_messages_append.conversation_id = coc_messages.conversation_id
+  -- ! Adjust filter fields for Minneapolis
+  WHERE coc_messages.campaign_name iLIKE '%BRAGG%'
+    AND coc_messages.ttimestamp BETWEEN '2021-05-01' AND '2021-06-30'
+    AND coc_messages.import_source iLIKE 'colorofchangeny%'
+)
+
+, thrutext AS (
+  SELECT date, contact_type, contact_id, voter_id, sender_phone, conversation_flag
+  FROM thrutext_base
+  WHERE dupes_ranked = 1
+)
+
+
+, combine AS (
+  SELECT * FROM thrutalk
+  UNION ALL
+  SELECT * FROM thrutext
+)
+
+SELECT combine.* 
+  , vb_tsmart_latitude AS latitude
+  , vb_tsmart_longitude AS longitude
+FROM combine
+LEFT JOIN ts.ntl_current
+  ON combine.voter_id = ntl_current.vb_smartvan_id
