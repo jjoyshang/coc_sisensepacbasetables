@@ -1,0 +1,36 @@
+WITH mob_events AS (
+SELECT DISTINCT 
+  mob_eventid
+  , mob_vaneventid
+FROM coc_reporting.mob_eventattendance 
+WHERE mob_source = 'Mobilize PAC'
+  AND mob_date BETWEEN '2021-05-01' AND '2021-06-30'
+ AND (mob_eventname iLIKE '%Manhattan%' OR mob_eventstate = 'NY')
+  AND mob_eventname NOT LIKE '%Cancelled%'
+)
+
+, ea_base AS (
+SELECT
+  mob_eventid
+  , coc_events.eventid
+  , coc_eventsignups.vanid AS ea_attendeesid
+  	, ROW_NUMBER () OVER (PARTITION BY coc_events.eventid, coc_eventsignups.vanid ORDER BY coc_eventsignupsstatuses.datemodified DESC) AS ea_signupdupe
+  	-- ^For deduping eventsignups by most recent sign up status
+  
+FROM mob_events
+LEFT JOIN tmc_van.coc_events
+  ON mob_events.mob_vaneventid = coc_events.eventid
+LEFT JOIN tmc_van.coc_eventsignups
+	ON coc_events.eventid = coc_eventsignups.eventid
+LEFT JOIN tmc_van.coc_eventsignupsstatuses
+ 	ON coc_eventsignups.eventsignupid = coc_eventsignupsstatuses.eventsignupid
+
+WHERE coc_eventsignups.eventrolename = 'Attendee'
+    -- ^Filter for 'Attendee' only, as opposed to Host or Host Committee.
+  AND coc_eventsignupsstatuses.eventstatusname <> 'Invited'
+  AND coc_eventsignupsstatuses.eventstatusname <> 'Declined'
+)
+
+SELECT mob_eventid, eventid AS ea_eventid, ea_attendeesid
+FROM ea_base
+WHERE ea_signupdupe = 1
