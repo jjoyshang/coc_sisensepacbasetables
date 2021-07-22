@@ -1,3 +1,18 @@
+/* This table belongs to a set of base tables that pull important metrics for assessing our work on PAC races.
+Here we are looking at the Manhattan DA Race 2021-06
+
+This table brings in the Number of RSVPs to events. The final select has all the event ids from Mobilize and
+EveryAction, and the attendee ids of everyone who signed up.
+*/
+
+
+DROP TABLE IF EXISTS coc_reporting.pacraces_20212022_eventrsvps ;
+CREATE TABLE coc_reporting.pacraces_20212022_eventrsvps AS
+
+
+/* This CTE references the coc_reporting.mob_eventattendance table. You can see the code here
+https://platform.civisanalytics.com/spa/#/scripts/sql/101066205
+This table brings in event and attendee informaiton from Mobilize. */
 WITH mob_events AS (
 SELECT DISTINCT 
   mob_eventid
@@ -9,6 +24,8 @@ WHERE mob_source = 'Mobilize PAC'
   AND mob_eventname NOT LIKE '%Cancelled%'
 )
 
+/* The mob_events CTE brings in events for the race. However, in the table it's referencing it doesn't include event
+sign ups, only completed attendances. Therefore, we are joining to EveryAction to bring in sign up information. */
 , ea_base AS (
 SELECT
   mob_eventid
@@ -29,8 +46,18 @@ WHERE coc_eventsignups.eventrolename = 'Attendee'
     -- ^Filter for 'Attendee' only, as opposed to Host or Host Committee.
   AND coc_eventsignupsstatuses.eventstatusname <> 'Invited'
   AND coc_eventsignupsstatuses.eventstatusname <> 'Declined'
+    -- 
 )
 
-SELECT mob_eventid, eventid AS ea_eventid, ea_attendeesid
+SELECT 
+  'Manhattan DA Primary 2021-06' AS election
+    -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
+  , mob_eventid, eventid AS ea_eventid, ea_attendeesid
 FROM ea_base
 WHERE ea_signupdupe = 1
+;
+
+
+-- Grant access:
+GRANT SELECT ON coc_reporting.pacraces_20212022_eventrsvps TO GROUP coc;
+GRANT ALL ON coc_reporting.pacraces_20212022_eventrsvps TO jshang, jharris1;
