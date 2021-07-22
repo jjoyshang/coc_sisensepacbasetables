@@ -1,0 +1,34 @@
+/* This table belongs to a set of base tables that pull important metrics for assessing our work on PAC races.
+Here we are looking at the Manhattan DA Race 2021-06
+
+This table brings in the number of people and doors that lit was dropped off at. The select has the date, vanid of the 
+voter, and address id.
+*/
+
+DROP TABLE IF EXISTS coc_reporting.pacraces_20212022_litdrops ;
+CREATE TABLE coc_reporting.pacraces_20212022_litdrops AS
+
+
+SELECT DISTINCT
+  'Manhattan DA Primary 2021-06' AS election
+    -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
+  , 'Lit Drop' AS contact_type
+  , survey.datecanvassed AS date
+  , survey.vanid
+  , vb_tsmart_exact_address_track AS address
+FROM tmc_van.coc_contactssurveyresponses_vf as survey
+LEFT JOIN tmc_van.coc_surveyquestions AS survey_questions
+  ON survey.surveyquestionid = survey_questions.surveyquestionid
+LEFT JOIN tmc_van.coc_surveyresponses AS survey_responses
+  ON survey.surveyresponseid = survey_responses.surveyresponseid
+LEFT JOIN ts.ntl_current AS vf
+ ON vf.vb_smartvan_id = survey.vanid
+ AND statecode = vf.vb_tsmart_state
+WHERE survey.committeeid IN ('65411') ---- PAC committee id 
+  AND survey_responses.surveyquestionid = '452795' -- Survey question for lit drop
+  AND statecode IN ('NY') -- filter to New York state VAN instance
+;
+  
+-- Grant access:
+GRANT SELECT ON coc_reporting.pacraces_20212022_litdrops TO GROUP coc;
+GRANT ALL ON coc_reporting.pacraces_20212022_litdrops TO jshang, jharris1;
