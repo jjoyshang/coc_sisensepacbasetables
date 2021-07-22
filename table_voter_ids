@@ -1,3 +1,15 @@
+/* This table belongs to a set of base tables that pull important metrics for assessing our work on PAC races.
+Here we are looking at the Manhattan DA Race 2021-06
+
+This table brings in the results of the survey questions we care about. For this race, we looked at DA Candidate ID,
+Support Candidate, Voting Plan, and Vote Tripling.
+*/
+
+
+DROP TABLE IF EXISTS coc_reporting.pacraces_20212022_voterids ;
+CREATE TABLE coc_reporting.pacraces_20212022_voterids  AS
+
+
 WITH base AS (
 SELECT DISTINCT
   survey.datecanvassed::Date AS date
@@ -24,7 +36,9 @@ WHERE survey.committeeid IN ('65411') ---- PAC committee id
 )
 
 SELECT
-  date
+  'Manhattan DA Primary 2021-06' AS election
+    -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
+  , date
   , contacttype
   , surveyquestion_id
   , surveyquestion_name
@@ -32,3 +46,9 @@ SELECT
   , vanid
 FROM base
 WHERE dedup_rank = 1
+;
+
+
+-- Grant access:
+GRANT SELECT ON coc_reporting.pacraces_20212022_voterids TO GROUP coc;
+GRANT ALL ON coc_reporting.pacraces_20212022_voterids TO jshang, jharris1;
