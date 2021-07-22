@@ -1,5 +1,23 @@
+/* This table belongs to a set of base tables that pull important metrics for assessing our work on PAC races.
+Here we are looking at the Manhattan DA Race 2021-06
+
+This table brings on information on our Volunteer Engagement for the race. The select includes events, users who
+completed attending the event, and whether the event was a lit drop.
+
+It references the coc_reporting.mob_eventattendance table. You can see the code here
+https://platform.civisanalytics.com/spa/#/scripts/sql/101066205
+This table brings in event and attendee informaiton from Mobilize.
+*/
+
+
+DROP TABLE IF EXISTS coc_reporting.pacraces_20212022_volengagement ;
+CREATE TABLE coc_reporting.pacraces_20212022_volengagement  AS
+
+
 SELECT
-  mob_eventid AS event_id
+  'Manhattan DA Primary 2021-06' AS election
+    -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
+  , mob_eventid AS event_id
   , mob_date AS event_date
   , mob_eventname AS event_name
   , mob_userid AS user_id
@@ -10,3 +28,9 @@ WHERE mob_source = 'Mobilize PAC'
   AND mob_date BETWEEN '2021-05-01' AND '2021-06-30'
  AND (mob_eventname iLIKE '%Manhattan%' OR mob_eventstate = 'NY')
   AND mob_eventname NOT LIKE '%Cancelled%'
+;
+
+
+-- Grant access:
+GRANT SELECT ON coc_reporting.pacraces_20212022_volengagement TO GROUP coc;
+GRANT ALL ON coc_reporting.pacraces_20212022_volengagement TO jshang, jharris1;
