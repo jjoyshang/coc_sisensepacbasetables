@@ -94,5 +94,5 @@ LEFT JOIN ts.ntl_current
 
   
   -- Grant access:
-GRANT SELECT ON coc_reporting.pac_manhattan202106_votercontact TO GROUP coc;
-GRANT ALL ON coc_reporting.pac_manhattan202106_votercontact TO jshang, jharris1;
+GRANT SELECT ON coc_reporting.pacraces_20212022_votercontact TO GROUP coc;
+GRANT ALL ON coc_reporting.pacraces_20212022_votercontact TO jshang, jharris1;
