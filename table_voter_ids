@@ -1,0 +1,34 @@
+WITH base AS (
+SELECT DISTINCT
+  survey.datecanvassed::Date AS date
+  , CASE WHEN survey.contacttypeid = 37 THEN 'Text'
+      WHEN survey.contacttypeid = 1 THEN 'Phone'
+          END as contacttype
+  , survey_questions.surveyquestionid AS surveyquestion_id
+  , survey_questions.surveyquestionname AS surveyquestion_name
+  , survey_responses.surveyresponsename AS surveyquestion_response
+  , survey.vanid
+  , ROW_NUMBER() OVER (PARTITION BY surveyquestion_id, vanid ORDER BY date DESC) AS dedup_rank
+      -- Creating a field to dedup in final select. There can be some duplicates in the data, if one person responds to the
+      -- same question on different days / from a textathon and a phonebank. This keeps the most recent response.
+FROM tmc_van.coc_contactssurveyresponses_vf as survey
+LEFT JOIN tmc_van.coc_surveyquestions as survey_questions
+  ON survey.surveyquestionid = survey_questions.surveyquestionid
+LEFT JOIN tmc_van.coc_surveyresponses as survey_responses
+  ON survey.surveyresponseid = survey_responses.surveyresponseid
+WHERE survey.committeeid IN ('65411') ---- PAC committee id
+  AND statecode IN ('NY') -- filter to NY VAN instance
+  AND survey.datecanvassed BETWEEN '2021-05-01' AND '2021-06-30'
+  AND survey_questions.surveyquestionid IN ('452630', '452634', '452631', '452637')
+    -- First code is for 'Support Bragg' DA Candidate ID question
+)
+
+SELECT
+  date
+  , contacttype
+  , surveyquestion_id
+  , surveyquestion_name
+  , surveyquestion_response
+  , vanid
+FROM base
+WHERE dedup_rank = 1
