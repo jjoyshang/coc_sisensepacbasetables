@@ -1,11 +1,22 @@
-DROP TABLE IF EXISTS coc_reporting.pac_manhattan202106_votercontact ;
-CREATE TABLE coc_reporting.pac_manhattan202106_votercontact  AS
+/* This table belongs to a set of base tables that pull important metrics for assessing our work on PAC races.
+Here we are looking at the Manhattan DA Race 2021-06
+
+This table brings in information on our Voter Contact efforts from ThruTalk and ThruText. The select include whether the 
+contact was through Phone or Text, the unique can id of the voter contacted, whether we successully reached and 
+had a conversation with the voter, and the latitude + longitude of the voter's address.
+*/
 
 
+DROP TABLE IF EXISTS coc_reporting.pacraces_20212022_votercontact ;
+CREATE TABLE coc_reporting.pacraces_20212022_votercontact  AS
+
+
+/* There are two CTEs for ThruTalk voter contact. This is the main table, which includes information on how many calls we 
+did and which voter we reached. */
 WITH thrutalk_1 AS (
   SELECT DISTINCT
     coc_call_results.date_called::Date AS date
-    , 'Phone' AS contact_type
+    , 'Dial' AS contact_type
     , coc_call_results.id::varchar AS contact_id
     , coc_call_results.voter_id::varchar
     , NULL::varchar AS sender_phone
@@ -17,10 +28,13 @@ WITH thrutalk_1 AS (
 )
 
 
+/* This second CTE for ThruTalk has information on how many staff/volunteers were doing the calling. Due to the ThruTalk
+table structure, the caller information incompletely joins to the call information. Therefore, caller ids are in this CTE
+so they can be counted in the dashboard. */
 , thrutalk_2 AS (
   SELECT DISTINCT
     coc_callers.date::Date AS date
-    ,'Phone' AS contact_type
+    ,'Dial' AS contact_type
     , NULL::varchar AS contact_id
     , NULL::varchar AS voter_id
     , coc_callers.phone::varchar AS sender_phone
@@ -49,6 +63,7 @@ WITH thrutalk_1 AS (
     AND coc_messages.import_source iLIKE 'colorofchangeny%'
 )
 
+/*This CTE to dedup the ThruText data.*/
 , thrutext AS (
   SELECT date, contact_type, contact_id, voter_id, sender_phone, conversation_flag
   FROM thrutext_base
@@ -64,8 +79,11 @@ WITH thrutalk_1 AS (
   SELECT * FROM thrutext
 )
 
+
+/*This Final Select joins to the voterfile to bring in the latitude and longitude of the voter.*/
 SELECT 
   'Manhattan DA Primary 2021-06' AS election
+    -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
   , combine.* 
   , vb_tsmart_latitude AS latitude
   , vb_tsmart_longitude AS longitude
