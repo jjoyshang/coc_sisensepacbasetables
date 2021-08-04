@@ -275,7 +275,7 @@ SELECT DISTINCT
   survey.datecanvassed::Date AS date
   , CASE WHEN survey.contacttypeid = 37 THEN 'Text'
       WHEN survey.contacttypeid = 1 THEN 'Phone'
-          END as contacttype
+          END as contact_type
   , survey.surveyresponseid AS contact_id
   , survey_questions.surveyquestionid AS surveyquestion_id
   , survey_questions.surveyquestionname AS surveyquestion_name
@@ -305,7 +305,8 @@ SELECT
   '{{election_name}}' AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
   , date
-  , contacttype
+  , contact_type
+  , contact_id
   , surveyquestion_id
   , surveyquestion_name
   , surveyquestion_response
