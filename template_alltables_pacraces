@@ -82,11 +82,12 @@ SELECT
   '{{election_name}}' AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
   , combine.* 
-  , vb_tsmart_latitude AS latitude
-  , vb_tsmart_longitude AS longitude
+  , ROUND(vb_tsmart_latitude, 2) AS latitude
+  , ROUND(vb_tsmart_longitude, 2) AS longitude
 FROM combine
 LEFT JOIN ts.ntl_current
   ON combine.voter_id = ntl_current.vb_smartvan_id
+WHERE vb_vf_source_state iLIKE '{{state_abr}}'
 )
 ;
 
@@ -114,8 +115,9 @@ INSERT INTO coc_reporting.pacraces_20212022_litdrops (
 SELECT DISTINCT
   '{{election_name}}' AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
+  , survey.surveyresponseid AS contact_id
   , 'Lit Drop' AS contact_type
-  , LEFT (survey.datecanvassed, 10) AS date
+  , (LEFT(survey.datecanvassed, 10))::Date AS date
   , survey.vanid
   , vb_tsmart_exact_address_track AS address
 FROM tmc_van.coc_contactssurveyresponses_vf as survey
@@ -274,6 +276,7 @@ SELECT DISTINCT
   , CASE WHEN survey.contacttypeid = 37 THEN 'Text'
       WHEN survey.contacttypeid = 1 THEN 'Phone'
           END as contacttype
+  , survey.surveyresponseid AS contact_id
   , survey_questions.surveyquestionid AS surveyquestion_id
   , survey_questions.surveyquestionname AS surveyquestion_name
   , survey_responses.surveyresponsename AS surveyquestion_response
