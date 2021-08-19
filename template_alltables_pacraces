@@ -19,7 +19,7 @@ WITH thrutalk_1 AS (
     , 'Dial' AS contact_type
     , coc_call_results.id::varchar AS contact_id
     , coc_call_results.voter_id::varchar
-    , NULL::varchar AS sender_phone
+    , NULL::bigint AS sender_phone
     , CASE WHEN result = 'Talked to Correct Person' THEN '1' ELSE NULL END AS conversation_flag
   FROM tmc_thrutalk.coc_call_results
   WHERE coc_call_results.service_account = 'coc_{{state}}_voters'
@@ -35,7 +35,7 @@ so they can be counted in the dashboard. */
     ,'Dial' AS contact_type
     , NULL::varchar AS contact_id
     , NULL::varchar AS voter_id
-    , coc_callers.phone::varchar AS sender_phone
+    , coc_callers.phone::bigint AS sender_phone
     , NULL::varchar AS conversation_flag
   FROM tmc_thrutalk.coc_callers
   WHERE coc_callers.service_account = 'coc_{{state}}_voters'
@@ -48,7 +48,7 @@ so they can be counted in the dashboard. */
     , 'Text' AS contact_type
     , coc_messages.conversation_id::varchar AS contact_id
     , thrutext_messages_append.van_id::varchar AS voter_id
-    , coc_messages.sender_phone::varchar
+    , (RIGHT(coc_messages.sender_phone, 10))::bigint AS sender_phone
     , CASE WHEN coc_messages.message_direction = 'incoming' THEN '1' ELSE NULL END AS conversation_flag
     , ROW_NUMBER () OVER (PARTITION BY coc_messages.conversation_id ORDER BY conversation_flag DESC NULLS LAST) AS dupes_ranked
     -- ^ Field needed to dedup message id and get one record per conversation id
@@ -87,7 +87,10 @@ SELECT
 FROM combine
 LEFT JOIN ts.ntl_current
   ON combine.voter_id = ntl_current.vb_smartvan_id
-WHERE vb_vf_source_state iLIKE '{{state_abr}}'
+  AND vb_vf_source_state iLIKE '{{state_abr}}'
+  -- ^ Filtering, since the voter_id is unique by state
+  AND vb_tsmart_state iLIKE '{{state_abr}}'
+  -- ^ Filtering location data to regions within the state, for the latitude and longitude
 )
 ;
 
@@ -274,7 +277,7 @@ WITH base AS (
 SELECT DISTINCT
   survey.datecanvassed::Date AS date
   , CASE WHEN survey.contacttypeid = 37 THEN 'Text'
-      WHEN survey.contacttypeid = 1 THEN 'Phone'
+      WHEN survey.contacttypeid = 1 THEN 'Dial'
           END as contact_type
   , survey.surveyresponseid AS contact_id
   , survey_questions.surveyquestionid AS surveyquestion_id
