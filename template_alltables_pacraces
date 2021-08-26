@@ -55,7 +55,7 @@ so they can be counted in the dashboard. */
   FROM tmc_thrutext.coc_messages
   LEFT JOIN coc_reporting.thrutext_messages_append
     ON thrutext_messages_append.conversation_id = coc_messages.conversation_id
-  WHERE coc_messages.campaign_name iLIKE '%{{endorsed_candidate_initiative}}%'
+  WHERE ({{thrutext_campaign_name}})
     AND coc_messages.ttimestamp BETWEEN '{{start_date}}' AND '{{end_date}}'
     AND coc_messages.import_source iLIKE 'colorofchange{{state_abr}}%'
 )
@@ -212,7 +212,7 @@ SELECT DISTINCT
 FROM coc_reporting.mob_eventattendance 
 WHERE mob_source = 'Mobilize PAC'
   AND mob_date BETWEEN '{{start_date}}' AND '{{end_date}}'
- AND (mob_eventname iLIKE '%{{city}}%' OR mob_eventstate iLike '{{state_abr}}')
+ AND ({{mobilize_event_name}})
   AND mob_eventname NOT LIKE '%Cancelled%'
 )
 
