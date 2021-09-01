@@ -170,7 +170,9 @@ SELECT
   , mob_date AS event_date
   , mob_eventname AS event_name
   , mob_userid AS user_id
-  , CASE WHEN mob_eventname iLike '%Lit Drop%' THEN 1 ELSE NULL END AS litdrop_flag
+  , CASE WHEN mob_eventname iLike '%Lit Drop%' THEN 1 
+      WHEN mob_eventname iLike '%Canvass%' THEN 1 
+      ELSE NULL END AS litdrop_flag
 FROM coc_reporting.mob_eventattendance 
 WHERE mob_source = 'Mobilize PAC'
   AND mob_date BETWEEN '{{start_date}}' AND '{{end_date}}'
