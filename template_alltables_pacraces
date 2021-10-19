@@ -211,6 +211,8 @@ This table brings in event and attendee informaiton from Mobilize. */
 WITH mob_events AS (
 SELECT DISTINCT 
   mob_eventid
+  , mob_date
+  , mob_eventname
   , mob_vaneventid
 FROM coc_reporting.mob_eventattendance 
 WHERE mob_source = 'Mobilize PAC'
@@ -224,6 +226,8 @@ sign ups, only completed attendances. Therefore, we are joining to EveryAction t
 , ea_base AS (
 SELECT
   mob_eventid
+  , mob_date
+  , mob_eventname
   , coc_events.eventid
   , coc_eventsignups.vanid AS ea_attendeesid
   	, ROW_NUMBER () OVER (PARTITION BY coc_events.eventid, coc_eventsignups.vanid ORDER BY coc_eventsignupsstatuses.datemodified DESC) AS ea_signupdupe
@@ -247,7 +251,11 @@ WHERE coc_eventsignups.eventrolename = 'Attendee'
 SELECT 
   '{{election_name}}' AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
-  , mob_eventid, eventid AS ea_eventid, ea_attendeesid
+  , mob_eventid
+  , mob_date
+  , mob_eventname
+  , eventid AS ea_eventid
+  , ea_attendeesid
 FROM ea_base
 WHERE ea_signupdupe = 1
 )
@@ -281,6 +289,7 @@ SELECT DISTINCT
   survey.datecanvassed::Date AS date
   , CASE WHEN survey.contacttypeid = 37 THEN 'Text'
       WHEN survey.contacttypeid = 1 THEN 'Dial'
+      WHEN survey.contacttypeid = 2 THEN 'Canvass'
           END as contact_type
   , survey.surveyresponseid AS contact_id
   , survey_questions.surveyquestionid AS surveyquestion_id
