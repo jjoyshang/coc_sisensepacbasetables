@@ -326,9 +326,7 @@ WHERE survey.committeeid IN ('65411') ---- PAC committee id
 
 , van_clean AS (
 SELECT
-  '{{election_name}}' AS election
-    -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
-  , date
+  date
   , contact_type
   , contact_id
   , surveyquestion_id
@@ -361,13 +359,22 @@ WHERE vf_record_rank = 1
 )
 
 SELECT
-  van_clean.*
+  'TEST' AS election
+    -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
+  , van_clean.date
+  , van_clean.contact_type
+  , van_clean.contact_id
+  , van_clean.surveyquestion_id
+  , van_clean.surveyquestion_name
+  , van_clean.surveyquestion_response
+  , van_clean.vanid
 --  , county_name
 FROM van_clean
 LEFT JOIN location_dedup ON
   van_clean.vanid = location_dedup.vanid
 {{county_filter}}
 -- ^ When there are multiple races in the same state, use this parameter to differentiate between voter id results between races.
+)
 ;
 
 
