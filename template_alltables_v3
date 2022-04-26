@@ -19,15 +19,15 @@ WITH thrutalk_1 AS (
     , coc_call_results.voter_id::varchar
     , NULL::bigint AS sender_phone
     , CASE WHEN result = 'Talked to Correct Person' THEN '1' ELSE NULL END AS conversation_flag
-  FROM tmc_thrutalk.coc_call_results
-  WHERE coc_call_results.service_account = '{{thrutalk_account}}'
-    AND coc_call_results.date_called BETWEEN '{{start_date}}' AND '{{end_date}}'
+  FROM coc_thrutalk.results as coc_call_results
+  WHERE coc_call_results.campaign_name = '{{thrutalk_account}}'
+    AND date BETWEEN '{{start_date}}' AND '{{end_date}}'
 )
 
 /* This second CTE for ThruTalk has information on how many staff/volunteers were doing the calling. Due to the ThruTalk
 table structure, the caller information incompletely joins to the call information. Therefore, caller ids are in this CTE
 so they can be counted in the dashboard. */
-, thrutalk_2 AS (
+, thrutalk_2xf AS (
   SELECT DISTINCT
     coc_callers.date::Date AS date
     ,'Dial' AS contact_type
@@ -35,10 +35,16 @@ so they can be counted in the dashboard. */
     , NULL::varchar AS voter_id
     , coc_callers.phone::bigint AS sender_phone
     , NULL::varchar AS conversation_flag
-  FROM tmc_thrutalk.coc_callers
-  WHERE coc_callers.service_account = '{{thrutalk_account}}'
-    AND coc_callers.date BETWEEN '{{start_date}}' AND '{{end_date}}'
+  FROM coc_thrutalk.callers as coc_callers
+  WHERE coc_callers.campaign_name = '{{thrutalk_account}}'
  )
+
+ , thrutalk_2 AS (
+   SELECT *
+   FROM thrutalk_2xf
+   WHERE date BETWEEN '{{start_date}}' AND '{{end_date}}'
+ )
+
 
 , thrutext_base AS (
   SELECT 
@@ -77,7 +83,7 @@ so they can be counted in the dashboard. */
 
 /*This Final Select joins to the voterfile to bring in the latitude and longitude of the voter.*/
 SELECT 
-  '{{election_name}}' AS election
+  {{election_name.literal}} AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
   , combine.* 
   , ROUND(vb_tsmart_latitude, 2) AS latitude
@@ -85,9 +91,9 @@ SELECT
 FROM combine
 LEFT JOIN ts.ntl_current
   ON combine.voter_id = ntl_current.vb_smartvan_id
-  AND vb_vf_source_state iLIKE '{{state_abr}}'
+  AND vb_vf_source_state iLIKE {{state_abr.literal}}
   -- ^ Filtering, since the voter_id is unique by state
-  AND vb_tsmart_state iLIKE '{{state_abr}}'
+  AND vb_tsmart_state iLIKE {{state_abr.literal}}
   -- ^ Filtering location data to regions within the state, for the latitude and longitude
 )
 ;
@@ -107,12 +113,12 @@ This table brings in the number of people and doors that lit was dropped off at.
 voter, and address id.
 */
 
-DELETE FROM coc_reporting.pacraces_20212022_litdrops WHERE election = '{{election_name}}';
+DELETE FROM coc_reporting.pacraces_20212022_litdrops WHERE election = {{election_name.literal}};
 INSERT INTO coc_reporting.pacraces_20212022_litdrops (
 
 WITH base AS (
 SELECT DISTINCT
-  '{{election_name}}' AS election
+  {{election_name.literal}} AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
   , survey.surveyresponseid AS contact_id
   , 'Lit Drop' AS contact_type
@@ -128,8 +134,8 @@ LEFT JOIN ts.ntl_current AS vf
  ON vf.vb_smartvan_id = survey.vanid
  AND statecode = vf.vb_tsmart_state
 WHERE survey.committeeid IN ('65411') ---- PAC committee id 
-  AND survey_responses.surveyquestionid = '{{litdrop_question}}' -- Survey question for lit drop
-  AND statecode iLIKE '{{state_abr}}' -- filter to state VAN instance
+  AND survey_responses.surveyquestionid = {{litdrop_question.literal}} -- Survey question for lit drop
+  AND statecode iLIKE {{state_abr.literal}} -- filter to state VAN instance
 )
 
 , location_filter AS (
@@ -144,6 +150,7 @@ WHERE vb_tsmart_county_name = vb_vf_county_name
   -- ^ making sure the TargetSmart county name matches the county in voterfile
 )
 
+/*
 , location_dedup AS (
 SELECT
   vanid
@@ -151,13 +158,14 @@ SELECT
 FROM location_filter
 WHERE vf_record_rank = 1
 )
-
+*/
+--Updated to pull from location filter, not location dedup.
 SELECT
   base.*
 --  , county_name
 FROM base
-LEFT JOIN location_dedup ON
-  base.vanid = location_dedup.vanid
+LEFT JOIN location_filter ON
+  base.vanid = location_filter.vanid
 {{county_filter}}
 -- ^ When there are multiple races in the same state, use this parameter to differentiate between voter id results between races.
 )
@@ -183,12 +191,12 @@ This table brings in event and attendee informaiton from EveryAction.
 */
 
 
-DELETE FROM coc_reporting.pacraces_20212022_volengagement WHERE election = '{{election_name}}';
+DELETE FROM coc_reporting.pacraces_20212022_volengagement WHERE election = {{election_name.literal}};
 INSERT INTO coc_reporting.pacraces_20212022_volengagement (
 
 
 SELECT
-  '{{election_name}}' AS election
+  {{election_name.literal}} AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
   , ea_eventid AS event_id
   , cast(ea_date AS date) AS event_date
@@ -201,7 +209,7 @@ SELECT
       ELSE NULL END AS litdrop_flag
 FROM coc_reporting.ea_eventattendance 
 WHERE ea_entity = 'PAC'
-  AND ea_date BETWEEN '{{start_date}}' AND '{{end_date}}'
+  AND ea_date BETWEEN {{start_date.literal}} AND {{end_date.literal}}
   AND ({{ea_event_name}})
   AND ea_eventname NOT iLIKE '%Cancelled%'
 )
@@ -224,7 +232,7 @@ EveryAction, and the attendee ids of everyone who signed up.
 */
 
 
-DELETE FROM coc_reporting.pacraces_20212022_eventrsvps WHERE election = '{{election_name}}';
+DELETE FROM coc_reporting.pacraces_20212022_eventrsvps WHERE election = {{election_name.literal}};
 INSERT INTO coc_reporting.pacraces_20212022_eventrsvps (
 
 
@@ -233,7 +241,7 @@ WITH volengagement AS (
 SELECT DISTINCT
   event_id
 FROM coc_reporting.pacraces_20212022_volengagement 
-  WHERE election = '{{election_name}}'
+  WHERE election = {{election_name.literal}}
 )
 
 /* The mob_events CTE brings in events for the race. However, in the table it's referencing it doesn't include event
@@ -261,7 +269,7 @@ WHERE coc_eventsignups.eventrolename = 'Attendee'
 )
 
 SELECT 
-  '{{election_name}}' AS election
+  {{election_name.literal}} AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
   , event_id AS ea_eventid
   , ea_attendeesid AS ea_signupid
@@ -287,7 +295,7 @@ Support Candidate, Voting Plan, and Vote Tripling.
 */
 
 
-DELETE FROM coc_reporting.pacraces_20212022_voterids WHERE election = '{{election_name}}' ;
+DELETE FROM coc_reporting.pacraces_20212022_voterids WHERE election = {{election_name.literal}} ;
 INSERT INTO coc_reporting.pacraces_20212022_voterids (
 
 
@@ -312,8 +320,8 @@ LEFT JOIN tmc_van.coc_surveyquestions as survey_questions
 LEFT JOIN tmc_van.coc_surveyresponses as survey_responses
   ON survey.surveyresponseid = survey_responses.surveyresponseid
 WHERE survey.committeeid IN ('65411') ---- PAC committee id
-  AND statecode iLike '{{state_abr}}' -- filter to state VAN instance
-  AND survey.datecanvassed BETWEEN '{{start_date}}' AND '{{end_date}}'
+  AND statecode iLike {{state_abr.literal}} -- filter to state VAN instance
+  AND survey.datecanvassed BETWEEN {{start_date.literal}} AND {{end_date.literal}}
   AND survey_questions.surveyquestionid IN ({{endorsement_surveyqs}}, '452631', '452637')
     /* Survey questions are: 
       Candidate ID ('452630' is DA Candidate ID),
@@ -350,6 +358,7 @@ WHERE vb_tsmart_county_name = vb_vf_county_name
   -- ^ making sure the TargetSmart county name matches the county in voterfile
 )
 
+/*
 , location_dedup AS (
 SELECT
   vanid
@@ -357,9 +366,11 @@ SELECT
 FROM location_filter
 WHERE vf_record_rank = 1
 )
+*/
+--Updated to pull from location filter, not location dedup.
 
 SELECT
-  'TEST' AS election
+  {{election_name.literal}} AS election
     -- ^This field added because it will be used in a dashboard that can be filtered to see different races on the same page.
   , van_clean.date
   , van_clean.contact_type
@@ -370,8 +381,8 @@ SELECT
   , van_clean.vanid
 --  , county_name
 FROM van_clean
-LEFT JOIN location_dedup ON
-  van_clean.vanid = location_dedup.vanid
+LEFT JOIN location_filter ON
+  van_clean.vanid = location_filter.vanid
 {{county_filter}}
 -- ^ When there are multiple races in the same state, use this parameter to differentiate between voter id results between races.
 )
